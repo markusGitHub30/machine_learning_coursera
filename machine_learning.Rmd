@@ -1,0 +1,106 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# Coursera Project - Machine Learning 
+
+## Overview
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+## Preperations
+
+```{r }
+memory.limit(9999999999)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(e1071)
+library(rattle)
+library(randomForest)
+
+```
+
+```{r }
+##Data Loading 
+
+setwd = "D:\\Workspace\\Data_Scientit_Coursa\\R_stuff\\machine_learning"
+
+# set the URL for the download
+UrlTrain <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+UrlTest  <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+# download the datasets
+training <- read.csv(url(UrlTrain))
+testing  <- read.csv(url(UrlTest))
+
+#Cleaning the input data
+
+#Removing every variable without any value
+
+training<- training[, colSums(is.na(training)) == 0]
+testing <- testing[, colSums(is.na(testing)) == 0]
+
+#Removing col1-7, as these cols do not have any influence to the models
+training_c <- training[,-c(1:7)]
+testing_c <- testing[,-c(1:7)]
+
+##Cleaning further (near zero values)
+NZV <- nearZeroVar(training_c)
+training_c <- training_c[, -NZV]
+
+#Splitting the train set into a train set and a test set. 
+
+set.seed(50) 
+training_s <- createDataPartition(training_c$classe, p = 0.5, list = FALSE)
+train_train <- training_c[training_s, ]
+train_test <- training_c[-training_s, ]
+
+#Rename the testing set into validation set
+validation <- testing_c
+```
+
+## Model building and testing
+
+### 1) Decisions Tree
+
+```{r}
+set.seed(50)
+mod_decisionTree <- train(classe ~., method='rpart', data=train_train)
+rpart.plot(mod_decisionTree$finalModel)
+
+# prediction on Test dataset
+predict_decisionTree <- predict(mod_decisionTree, train_test)
+confusionMatrix(train_test$classe, predict_decisionTree)
+```
+
+With a model accuracy of 0.7171 and a out of sample error of about 0.28, the model is far from perfect.
+
+### 2) Random Forrest
+
+```{r}
+set.seed(50)
+control_rf <- trainControl(method="cv", number=3, verboseIter=FALSE)
+mod_rf <- train(classe ~ ., data=train_train, method="rf",trControl=control_rf)
+mod_rf$finalModel
+
+# prediction on Test dataset
+predict_rf <- predict(mod_rf, newdata=train_test)
+confMat_rf <- confusionMatrix(predict_rf, train_test$classe)
+confMat_rf
+```
+
+The accuracy rate is near to 1 and therfore very high. 
+
+## Using the Random Forrest model for the validation set
+
+```{r}
+predict(mod_rf, validation)
+
+```
+
+## Conclusion
+
+The Random Forrest algorithem is the best choise and will be used for the Course Project Prediction Quiz.
